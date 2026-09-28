@@ -1,0 +1,18 @@
+server:
+  port: 8090
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+        # 운영(HTTPS)에서는 secure: true 로 설정
+
+esp:
+  sso:
+    # esp에서 전달받은 공개키 (PEM, X.509 SubjectPublicKeyInfo)
+    public-key-location: classpath:keys/esp-public.pem
+    # 토큰 발급자(iss)와 이 시스템의 식별자(aud) - esp와 사전에 합의한 값
+    issuer: esp
+    audience: 3rd-A
+    # 서버 간 시계 오차 허용치
+    clock-skew: 30s
