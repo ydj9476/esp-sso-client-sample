@@ -2,11 +2,11 @@
   "configurations": [
     {
       "type": "java",
-      "name": "Spring Boot-SsoClientApplication<esp-jwt-sso-client-sample>",
+      "name": "Spring Boot-SsoClientApplication<esp-sso-client-sample>",
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "mainClass": "com.example.sso.SsoClientApplication",
-      "projectName": "esp-jwt-sso-client-sample",
+      "projectName": "esp-sso-client-sample",
       "args": "",
       "envFile": "${workspaceFolder}/.env"
     }
