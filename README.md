@@ -25,14 +25,12 @@ token=b3f1c2e4-...
 
 ```
 POST {esp 주소}/esp/api/v1/auth/sso
-X-SSO-CLIENT-ID: 3rd-A          (esp 에서 발급)
-X-SSO-API-KEY:   ********       (esp 에서 발급)
-Content-Type:    application/json
+Content-Type: application/json
 
 { "token": "b3f1c2e4-..." }
 ```
 
-응답 — `header.resCode` 가 `success` 이면 성공:
+응답 — HTTP `200` 이면 성공, 그 외(4xx/5xx)는 실패:
 
 ```json
 { "header": { "resCode": "success" },
@@ -41,27 +39,28 @@ Content-Type:    application/json
 
 ### ③ 로그인 처리
 
-- 성공: 세션에 `loginId` 저장 → 메인 화면으로 redirect (`302`, 새로고침 시 토큰 재전송 방지)
-- 실패: 로그인 실패 화면
+- 성공: 3rd 자체 사용자 확인 → 세션에 `loginId` 저장 → `main.html` 로 redirect (`302`, 새로고침 시 토큰 재전송 방지)
+- 실패
+  - ESP 연동 오류 (토큰 만료·재사용, esp-api 오류 응답, 타임아웃·연결 실패 등) → `esp-error.html`
+  - 3rd 자체 오류 (3rd 에 없는 사용자 등, 3rd 가 구현) → `3rd-error.html`
 
 ## 파일
 
 | 파일 | 내용 |
 |---|---|
 | `SsoController.java` | 위 ①②③ 전부 |
-| `templates/main.html` | 메인 화면 (샘플) |
-| `templates/login-fail.html` | 로그인 실패 화면 |
-| `application.yml` | esp 주소, 검증 API 경로, client-id |
+| `SsoLoginResponse.java` | esp-api 검증 응답 DTO |
+| `static/main.html` | 메인 화면 (샘플) |
+| `static/esp-error.html` | ESP 연동 오류 화면 |
+| `static/3rd-error.html` | 3rd 시스템 오류 화면 |
+| `application.yml` | esp 주소, 검증 API 경로 |
 
 ## 실행
 
 ```bash
-ESP_SSO_API_KEY=발급받은값 ./gradlew bootRun
+./gradlew bootRun
 ```
-
-API Key 는 설정 파일에 넣지 않고 환경변수 `ESP_SSO_API_KEY` 로 넣습니다.
 
 ## 준비 사항
 
-- esp 로부터 `client-id`, API Key 발급
 - 3rd 서버 → esp-api 통신 가능 (방화벽 오픈)

@@ -12,8 +12,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.RestClient;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -25,43 +23,49 @@ public class SsoController {
 
     private final RestClient espApi;
     private final String verifyPath;
-    private final String clientId;
-    private final String apiKey;
 
-    public SsoController(RestClient.Builder builder,
-            @Value("${esp.base-url}") String baseUrl,
-            @Value("${esp.verify-path}") String verifyPath,
-            @Value("${esp.client-id}") String clientId,
-            @Value("${ESP_SSO_API_KEY}") String apiKey) {
+    public SsoController(RestClient.Builder builder, @Value("${esp.base-url}") String baseUrl, @Value("${esp.verify-path}") String verifyPath) {
         this.espApi = builder.baseUrl(baseUrl).build();
         this.verifyPath = verifyPath;
-        this.clientId = clientId;
-        this.apiKey = apiKey;
     }
 
     /**
      * esp 에서 넘어오는 SSO 진입점.
      * 1. 받은 토큰을 esp-api 에 검증 요청
-     * 2. 검증되면 세션에 loginId 저장
+     * 2. 검증되면 3rd 자체 사용자 확인 후 세션에 loginId 저장
      * 3. 메인 화면으로 redirect (새로고침 시 토큰이 다시 전송되지 않도록)
+     * 오류: ESP 연동 오류는 esp-error.html, 3rd 자체 오류는 3rd-error.html
      */
     @PostMapping("/sso")
-    public String sso(@RequestParam(required = false) String token, HttpServletRequest request, HttpServletResponse response) {
-        String loginId = verifyToken(token);
-        if (loginId == null) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            return "login-fail";
+    public String sso(@RequestParam(name = "token", required = false) String token, HttpServletRequest request) {
+        try {
+            // 1. 로그인ID 요청
+            SsoLoginResponse res = espApi.post()
+                    .uri(verifyPath)
+                    .body(Map.of("token", token))
+                    .retrieve()
+                    .body(SsoLoginResponse.class);
+
+            String loginId = res.getData().getLoginId();
+
+            // 2. 3rd 자체 사용자 확인
+            if (1 == 2) {
+                log.warn("SSO 로그인 실패 [3RD] 3rd 미등록 사용자: loginId={}", loginId);
+                return "redirect:/3rd-error.html";
+            }
+
+            // 3. 세션에 로그인ID 저장 (서버 메모리, 브라우저에는 세션ID 쿠키만 전달)
+            HttpSession session = request.getSession();
+            session.setAttribute("loginId", loginId);
+
+            log.info("SSO 로그인 성공: loginId={}", loginId);
+
+            return "redirect:/main.html";
+        } catch (Exception e) {
+            // 응답 형식이 다른 경우 등
+            log.error("SSO 로그인 실패 [ESP] 처리 중 오류", e);
+            return "redirect:/esp-error.html";
         }
-
-        HttpSession session = request.getSession();
-        request.changeSessionId(); // 세션 고정 공격 방지
-        session.setAttribute("loginId", loginId);
-
-        // TODO: loginId 로 3rd 자체 사용자·권한 조회
-
-        log.info("SSO 로그인 성공: loginId={}", loginId);
-
-        return "redirect:/main";
     }
 
     /** 로그인 후 메인 화면 (샘플). */
@@ -70,50 +74,12 @@ public class SsoController {
         Object loginId = session.getAttribute("loginId");
         if (loginId == null) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            return "login-fail";
+            return "redirect:/esp-error.html";
         }
+
         model.addAttribute("loginId", loginId);
 
         return "main";
     }
 
-    /**
-     * esp-api 에 토큰 검증 요청 (서버 간 통신).
-     *
-     * <pre>
-     * 요청: POST /esp/api/v1/auth/sso
-     *       X-SSO-CLIENT-ID: 3rd-A
-     *       X-SSO-API-KEY:   ********
-     *       { "token": "b3f1c2e4-..." }
-     *
-     * 응답: { "header": { "resCode": "success" },
-     *         "data":   { "loginId": "admin" } }
-     * </pre>
-     *
-     * @return 검증 성공 시 loginId, 실패 시 null
-     */
-    private String verifyToken(String token) {
-        if (token == null || token.isBlank()) {
-            return null;
-        }
-        try {
-            JsonNode res = espApi.post()
-                    .uri(verifyPath)
-                    .header("X-SSO-CLIENT-ID", clientId)
-                    .header("X-SSO-API-KEY", apiKey)
-                    .body(Map.of("token", token))
-                    .retrieve()
-                    .body(JsonNode.class);
-
-            if (res != null && "success".equals(res.path("header").path("resCode").asText())) {
-                String loginId = res.path("data").path("loginId").asText("");
-                return loginId.isBlank() ? null : loginId;
-            }
-            log.warn("SSO 토큰 검증 실패: {}", res);
-        } catch (Exception e) {
-            log.warn("SSO 토큰 검증 실패: {}", e.getMessage());
-        }
-
-        return null;
-    }
 }
