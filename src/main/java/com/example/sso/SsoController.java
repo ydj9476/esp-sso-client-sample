@@ -1,19 +1,26 @@
 package com.example.sso;
 
+import java.net.http.HttpClient;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.time.Duration;
 import java.util.Map;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.RestClient;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 @Controller
@@ -24,9 +31,68 @@ public class SsoController {
     private final RestClient espApi;
     private final String verifyPath;
 
-    public SsoController(RestClient.Builder builder, @Value("${esp.base-url}") String baseUrl, @Value("${esp.verify-path}") String verifyPath) {
-        this.espApi = builder.baseUrl(baseUrl).build();
+    public SsoController(@Value("${esp.base-url}") String baseUrl,
+            @Value("${esp.verify-path}") String verifyPath,
+            @Value("${esp.connect-timeout-sec:2}") int connectTimeoutSec,
+            @Value("${esp.read-timeout-sec:3}") int readTimeoutSec,
+            @Value("${esp.trust-all-cert:true}") boolean trustAllCert) {
+
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient(connectTimeoutSec, trustAllCert));
+        factory.setReadTimeout(Duration.ofSeconds(readTimeoutSec));
+
+        this.espApi = RestClient.builder().baseUrl(baseUrl).requestFactory(factory).build();
         this.verifyPath = verifyPath;
+    }
+
+    /**
+     * ESP 호출용 HTTP 클라이언트.
+     *
+     * @param trustAllCert true 면 SSL 인증서 검증을 생략한다
+     */
+    private static HttpClient httpClient(int connectTimeoutSec, boolean trustAllCert) {
+        HttpClient.Builder builder = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(connectTimeoutSec));
+        if (trustAllCert) {
+            builder.sslContext(trustAllSslContext());
+        }
+
+        return builder.build();
+    }
+
+    /**
+     * 인증서 검증을 생략하는 SSLContext.
+     * ESP 가 사설 CA(Avaya System Manager CA 등) 가 발급한 인증서를 쓰는 경우, JVM 기본 truststore 로는
+     * 체인 검증이 불가능하다 (PKIX path building failed). 그 CA 인증서를 3rd 서버 truststore 에 등록하는 것이 정석이지만
+     * 등록이 어려운 환경을 위해 검증을 생략할 수 있게 열어둔다.
+     * ESP 가 공인 인증서를 쓰는 환경이라면 application.yml 의 esp.trust-all-cert 를 false 로 두는 것을
+     * 권장한다.
+     */
+    private static SSLContext trustAllSslContext() {
+        TrustManager trustAll = new X509TrustManager() {
+
+            @Override
+            public void checkClientTrusted(X509Certificate[] chain, String authType) {
+                // 검증하지 않는다
+            }
+
+            @Override
+            public void checkServerTrusted(X509Certificate[] chain, String authType) {
+                // 검증하지 않는다
+            }
+
+            @Override
+            public X509Certificate[] getAcceptedIssuers() {
+                return new X509Certificate[0];
+            }
+        };
+
+        try {
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, new TrustManager[] { trustAll }, new SecureRandom());
+
+            return sslContext;
+        } catch (Exception e) {
+            throw new IllegalStateException("SSLContext 생성 실패", e);
+        }
     }
 
     /**
@@ -60,26 +126,23 @@ public class SsoController {
 
             log.info("SSO 로그인 성공: loginId[{}]", loginId);
 
-            return "redirect:/main.html";
+            return "redirect:/main";
         } catch (Exception e) {
             // 응답 형식이 다른 경우 등
             log.error("SSO 로그인 실패 [ESP] 처리 중 오류", e);
+
             return "redirect:/esp-error.html";
         }
     }
 
-    /** 로그인 후 메인 화면 (샘플). */
+    /** 로그인 후 메인 화면. 세션이 있으면 static/main-page.html 을 보여준다. */
     @GetMapping("/main")
-    public String main(HttpSession session, Model model, HttpServletResponse response) {
-        Object loginId = session.getAttribute("loginId");
-        if (loginId == null) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    public String main(HttpSession session) {
+        if (session.getAttribute("loginId") == null) {
             return "redirect:/esp-error.html";
         }
 
-        model.addAttribute("loginId", loginId);
-
-        return "main";
+        return "forward:/main-page.html";
     }
 
 }

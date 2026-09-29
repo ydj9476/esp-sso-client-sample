@@ -39,7 +39,7 @@ Content-Type: application/json
 
 ### ③ 로그인 처리
 
-- 성공: 3rd 자체 사용자 확인 → 세션에 `loginId` 저장 → `main.html` 로 redirect (`302`, 새로고침 시 토큰 재전송 방지)
+- 성공: 3rd 자체 사용자 확인 → 세션에 `loginId` 저장 → `/main` 으로 redirect (`302`, 새로고침 시 토큰 재전송 방지) → 세션 확인 후 `main.html` 표시
 - 실패
   - ESP 연동 오류 (토큰 만료·재사용, esp-api 오류 응답, 타임아웃·연결 실패 등) → `esp-error.html`
   - 3rd 자체 오류 (3rd 에 없는 사용자 등, 3rd 가 구현) → `3rd-error.html`
@@ -50,10 +50,10 @@ Content-Type: application/json
 |---|---|
 | `SsoController.java` | 위 ①②③ 전부 |
 | `SsoLoginResponse.java` | esp-api 검증 응답 DTO |
-| `static/main.html` | 메인 화면 (샘플) |
+| `static/main-page.html` | 메인 화면 (샘플, `/main` 에서 forward) |
 | `static/esp-error.html` | ESP 연동 오류 화면 |
 | `static/3rd-error.html` | 3rd 시스템 오류 화면 |
-| `application.yml` | esp 주소, 검증 API 경로 |
+| `application.yml` | esp 주소, 검증 API 경로, 타임아웃, 인증서 옵션 |
 
 ## 실행
 
@@ -64,3 +64,13 @@ Content-Type: application/json
 ## 준비 사항
 
 - 3rd 서버 → esp-api 통신 가능 (방화벽 오픈)
+- ESP 가 **사설 CA 인증서**(Avaya System Manager CA 등)를 쓰는 경우, JVM 기본 truststore 로는
+  체인 검증이 안 되어 호출이 아래 오류로 실패한다.
+
+  ```
+  PKIX path building failed: unable to find valid certification path to requested target
+  ```
+
+  CA 인증서를 3rd 서버 truststore 에 등록하는 것이 정석이지만, 등록이 어려우면
+  `application.yml` 의 `esp.trust-all-cert` 를 `true` 로 두면 된다 (기본값).
+  ESP 가 공인 인증서를 쓰는 환경이면 `false` 를 권장한다.
