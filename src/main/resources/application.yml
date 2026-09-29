@@ -16,7 +16,7 @@ spring:
 
 esp:
   # ESP 주소
-  base-url: http://localhost:8080
-  # base-url: https://ipcc-stats-dev.kyobobook.co.kr
+  # base-url: http://localhost:8095
+  base-url: https://ipcc-stats-dev.kyobobook.co.kr
   # ESP API 경로
   verify-path: /esp/api/v1/auth/sso

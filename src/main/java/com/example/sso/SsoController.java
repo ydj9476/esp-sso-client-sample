@@ -58,7 +58,7 @@ public class SsoController {
             HttpSession session = request.getSession();
             session.setAttribute("loginId", loginId);
 
-            log.info("SSO 로그인 성공: loginId={}", loginId);
+            log.info("SSO 로그인 성공: loginId[{}]", loginId);
 
             return "redirect:/main.html";
         } catch (Exception e) {
