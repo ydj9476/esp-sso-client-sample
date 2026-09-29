@@ -24,7 +24,7 @@ token=b3f1c2e4-...
 ### ② esp-api 에 검증 요청
 
 ```
-POST {esp 주소}/esp/api/v1/auth/sso
+POST {esp 주소}/esp/api/v1/auth/sso/loginid
 Content-Type: application/json
 
 { "token": "b3f1c2e4-..." }
