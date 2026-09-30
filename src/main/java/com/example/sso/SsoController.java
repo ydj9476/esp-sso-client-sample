@@ -135,7 +135,7 @@ public class SsoController {
         }
     }
 
-    /** 로그인 후 메인 화면. 세션이 있으면 static/main-page.html 을 보여준다. */
+    /** 로그인 후 메인 화면 (static/main-page.html). */
     @GetMapping("/main")
     public String main(HttpSession session) {
         return "forward:/main-page.html";
