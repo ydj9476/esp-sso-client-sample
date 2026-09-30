@@ -32,8 +32,8 @@ public class SsoController {
 
     public SsoController(@Value("${esp.base-url}") String baseUrl,
             @Value("${esp.verify-path}") String verifyPath,
-            @Value("${esp.connect-timeout-sec:2}") int connectTimeoutSec,
-            @Value("${esp.read-timeout-sec:3}") int readTimeoutSec,
+            @Value("${esp.connect-timeout-sec:5}") int connectTimeoutSec,
+            @Value("${esp.read-timeout-sec:5}") int readTimeoutSec,
             @Value("${esp.trust-all-cert:true}") boolean trustAllCert) {
 
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient(connectTimeoutSec, trustAllCert));

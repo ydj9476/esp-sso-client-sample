@@ -11,8 +11,8 @@ esp:
   # ESP API 경로
   verify-path: /esp/api/v1/auth/sso/loginid
   # ESP 호출 타임아웃 (초)
-  connect-timeout-sec: 2
-  read-timeout-sec: 3
+  connect-timeout-sec: 5
+  read-timeout-sec: 5
   # ESP 가 사설 CA(Avaya System Manager CA 등) 인증서를 쓰면 true.
   # 공인 인증서 환경이면 false 를 권장한다.
   trust-all-cert: true
