@@ -135,9 +135,13 @@ public class SsoController {
         }
     }
 
-    /** 로그인 후 메인 화면 (static/main-page.html). */
+    /** 로그인 후 메인 화면. 세션이 있으면 static/main-page.html 을 보여준다. */
     @GetMapping("/main")
     public String main(HttpSession session) {
+        if (session.getAttribute("loginId") == null) {
+            return "redirect:/3rd-error";
+        }
+
         return "forward:/main-page.html";
     }
 

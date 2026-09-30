@@ -3,9 +3,6 @@ server:
   servlet:
     session:
       tracking-modes: cookie # redirect 주소에 ;jsessionid 가 붙지 않도록
-      cookie:
-        http-only: true
-        same-site: lax
 
 esp:
   # ESP 주소
