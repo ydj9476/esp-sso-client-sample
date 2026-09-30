@@ -16,7 +16,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.RestClient;
 
@@ -96,13 +95,14 @@ public class SsoController {
     }
 
     /**
-     * esp 에서 넘어오는 SSO 진입점.
+     * esp 에서 넘어오는 SSO 진입점. esp 가 띄운 팝업이 GET /sso?token=xxx 로 이동해 온다.
      * 1. 받은 토큰을 esp-api 에 검증 요청
      * 2. 검증되면 3rd 자체 사용자 확인 후 세션에 loginId 저장
-     * 3. 메인 화면으로 redirect (새로고침 시 토큰이 다시 전송되지 않도록)
-     * 오류: ESP 연동 오류는 esp-error.html, 3rd 자체 오류는 3rd-error.html
+     * 3. 메인 화면으로 redirect (주소창·새로고침에 토큰이 남지 않도록)
+     * 오류: ESP 연동 오류는 /esp-error, 3rd 자체 오류는 /3rd-error 로 redirect
+     * /sso 는 처리만 하고 화면은 각 경로(/main, /esp-error, /3rd-error)가 보여준다.
      */
-    @PostMapping("/sso")
+    @GetMapping("/sso")
     public String sso(@RequestParam(name = "token", required = false) String token, HttpServletRequest request) {
         try {
             // 1. 로그인ID 요청
@@ -117,7 +117,7 @@ public class SsoController {
             // 2. 3rd 자체 사용자 확인
             if (1 == 2) {
                 log.warn("SSO 로그인 실패 [3RD] 3rd 미등록 사용자: loginId={}", loginId);
-                return "redirect:/3rd-error.html";
+                return "redirect:/3rd-error";
             }
 
             // 3. 세션에 로그인ID 저장 (서버 메모리, 브라우저에는 세션ID 쿠키만 전달)
@@ -131,18 +131,26 @@ public class SsoController {
             // 응답 형식이 다른 경우 등
             log.error("SSO 로그인 실패 [ESP] 처리 중 오류", e);
 
-            return "redirect:/esp-error.html";
+            return "redirect:/esp-error";
         }
     }
 
     /** 로그인 후 메인 화면. 세션이 있으면 static/main-page.html 을 보여준다. */
     @GetMapping("/main")
     public String main(HttpSession session) {
-        if (session.getAttribute("loginId") == null) {
-            return "redirect:/esp-error.html";
-        }
-
         return "forward:/main-page.html";
+    }
+
+    /** ESP 연동 오류 화면 (static/esp-error.html). */
+    @GetMapping("/esp-error")
+    public String espError() {
+        return "forward:/esp-error.html";
+    }
+
+    /** 3rd 시스템 오류 화면 (static/3rd-error.html). */
+    @GetMapping("/3rd-error")
+    public String thirdError() {
+        return "forward:/3rd-error.html";
     }
 
 }
